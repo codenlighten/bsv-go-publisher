@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package main
 
 import (
@@ -5,10 +8,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/akua/bsv-broadcaster/internal/bsv"
 	"github.com/bsv-blockchain/go-sdk/script"
 	"github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/bsv-blockchain/go-sdk/transaction/template/p2pkh"
+	"github.com/codenlighten/bsv-go-publisher/internal/bsv"
 	"github.com/joho/godotenv"
 )
 

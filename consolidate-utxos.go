@@ -1,18 +1,19 @@
+//go:build ignore
+// +build ignore
+
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 
-	goarc "github.com/bsv-blockchain/go-arc/arc"
+	"github.com/bsv-blockchain/go-sdk/ec"
+	"github.com/bsv-blockchain/go-sdk/script"
 	"github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/bsv-blockchain/go-sdk/transaction/template/p2pkh"
 )
 
 func main() {
-	ctx := context.Background()
-
 	publishingAddr := "12w4BoPtqCt7EFLmUPi9GLmpbZ1CHdPvzj"
 	fundingAddr := "1XJ82FS3QLrXRT6zfrB4W9BanSSgFgw1m"
 	publishingPrivKey := "L1tvUUBsdYsRt1hbMCLtj1XEHL3XAfrcJKt2x7VxoKrQ8SdfFpxg"
@@ -22,7 +23,7 @@ func main() {
 	// dd61aed9114a2120933a15b28a51fbf0ab399b44020fb686151b68b91cea6fe2:0-499 are available
 
 	// Create transaction using first few publishing UTXOs to consolidate
-	privKey, err := transaction.PrivateKeyFromString(publishingPrivKey)
+	privKey, err := ec.PrivateKeyFromWif(publishingPrivKey)
 	if err != nil {
 		log.Fatalf("Failed to parse key: %v", err)
 	}
@@ -47,7 +48,7 @@ func main() {
 	}
 
 	// Create P2PKH script for publishing address
-	publishingAddrObj, err := transaction.AddressFromString(publishingAddr)
+	publishingAddrObj, err := script.NewAddressFromString(publishingAddr)
 	if err != nil {
 		log.Fatalf("Failed to parse address: %v", err)
 	}
@@ -78,16 +79,9 @@ func main() {
 	txHex := tx.String()
 	fmt.Printf("Consolidation TX: %s\n", tx.TxID().String())
 	fmt.Printf("Size: %d bytes\n", len(txHex)/2)
+	fmt.Printf("\nRaw hex:\n%s\n", txHex)
 
-	// Broadcast
-	client := goarc.NewARCClient(goarc.Production)
-	responses, err := client.BroadcastBatch(ctx, []string{txHex})
-	if err != nil {
-		log.Fatalf("Broadcast failed: %v", err)
-	}
-
-	fmt.Printf("Status: %s\n", responses[0].TxStatus)
-	if responses[0].ExtraInfo != "" {
-		fmt.Printf("Info: %s\n", responses[0].ExtraInfo)
-	}
+	// To broadcast, use curl or API:
+	fmt.Println("\n📡 To broadcast, run:")
+	fmt.Printf("curl -X POST https://arc.gorillapool.io/v1/tx -H \"Content-Type: text/plain\" -d '%s'\n", txHex)
 }

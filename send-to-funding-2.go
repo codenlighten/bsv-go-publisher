@@ -1,12 +1,14 @@
+//go:build ignore
+// +build ignore
+
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
-	"os"
 
-	goarc "github.com/bsv-blockchain/go-arc/arc"
+	"github.com/bsv-blockchain/go-sdk/ec"
+	"github.com/bsv-blockchain/go-sdk/script"
 	"github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/bsv-blockchain/go-sdk/transaction/template/p2pkh"
 )
@@ -27,7 +29,7 @@ func main() {
 	// For now, just create a P2PKH input from the first UTXO
 	// In reality we'd need to query blockchain for actual UTXO
 
-	privKey, err := transaction.PrivateKeyFromString(publishingPrivKey)
+	privKey, err := ec.PrivateKeyFromWif(publishingPrivKey)
 	if err != nil {
 		log.Fatalf("Failed to parse private key: %v", err)
 	}
@@ -46,7 +48,7 @@ func main() {
 	satoshis := uint64(100)
 
 	// Create a simple P2PKH locking script for the publishing address
-	addr, err := transaction.AddressFromString(publishingAddr)
+	addr, err := script.NewAddressFromString(publishingAddr)
 	if err != nil {
 		log.Fatalf("Failed to parse address: %v", err)
 	}
@@ -70,29 +72,14 @@ func main() {
 		log.Fatalf("Failed to sign: %v", err)
 	}
 
-	// Broadcast
+	// Display transaction info
 	txHex := tx.String()
+	fmt.Printf("\n✅ Transaction created successfully!\n")
 	fmt.Printf("Transaction hex: %s\n", txHex[:100]+"...")
 	fmt.Printf("Transaction size: %d bytes\n", len(txHex)/2)
 	fmt.Printf("Transaction ID: %s\n", tx.TxID().String())
 
-	// Broadcast to ARC
-	client := goarc.NewARCClient(goarc.Production)
-	ctx := context.Background()
-
-	responses, err := client.BroadcastBatch(ctx, []string{txHex})
-	if err != nil {
-		log.Fatalf("Failed to broadcast: %v", err)
-	}
-
-	fmt.Printf("ARC Response:\n")
-	fmt.Printf("  Status: %s\n", responses[0].TxStatus)
-	if responses[0].TxID != "" {
-		fmt.Printf("  TX ID: %s\n", responses[0].TxID)
-	}
-	if responses[0].ExtraInfo != "" {
-		fmt.Printf("  Info: %s\n", responses[0].ExtraInfo)
-	}
-
-	os.Exit(0)
+	fmt.Printf("\nRaw hex:\n%s\n", txHex)
+	fmt.Println("\n📡 To broadcast, run:")
+	fmt.Printf("curl -X POST https://arc.gorillapool.io/v1/tx -H \"Content-Type: text/plain\" -d '%s'\n", txHex)
 }
