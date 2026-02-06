@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/akua/bsv-broadcaster/internal/admin"
 	"github.com/akua/bsv-broadcaster/internal/api"
 	"github.com/akua/bsv-broadcaster/internal/arc"
 	"github.com/akua/bsv-broadcaster/internal/bsv"
@@ -99,8 +100,22 @@ func main() {
 	janitor := recovery.NewJanitor(db, 10*time.Minute, 5*time.Minute)
 	janitor.Start()
 
+	// Initialize admin components
+	clientManager := admin.NewClientManager(db)
+	sweeper := admin.NewSweeper(db, publishingKey, arcClient, 1.0) // 1 sat/byte fee rate
+	adminPassword := getEnv("ADMIN_PASSWORD", "")
+
 	// Start API server
 	apiServer := api.NewServer(db, trainWorker, publishingKey, splitter, arcClient)
+
+	// Register admin routes
+	if adminPassword != "" {
+		apiServer.RegisterAdminRoutes(clientManager, sweeper, adminPassword)
+		log.Println("✓ Admin routes enabled")
+	} else {
+		log.Println("⚠️  Admin routes disabled - set ADMIN_PASSWORD to enable")
+	}
+
 	go func() {
 		if err := apiServer.Start(":8080"); err != nil {
 			log.Printf("❌ API server error: %v", err)

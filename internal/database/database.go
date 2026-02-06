@@ -15,6 +15,7 @@ const (
 	DatabaseName                = "bsv_broadcaster"
 	CollectionUTXOs             = "utxos"
 	CollectionBroadcastRequests = "broadcast_requests"
+	CollectionClients           = "clients"
 )
 
 type Database struct {
@@ -85,6 +86,16 @@ func (d *Database) createIndexes(ctx context.Context) error {
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create request indexes: %w", err)
+	}
+
+	// Index for clients
+	clientsCollection := d.db.Collection(CollectionClients)
+	_, err = clientsCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "api_key_hash", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create client indexes: %w", err)
 	}
 
 	return nil
@@ -409,6 +420,118 @@ func (d *Database) GetUTXOStats(ctx context.Context) (map[string]int64, error) {
 	}
 
 	return stats, nil
+}
+
+// GetAvailableUTXOs fetches up to limit available UTXOs of a specific type
+func (d *Database) GetAvailableUTXOs(ctx context.Context, utxoType models.UTXOType, limit int) ([]*models.UTXO, error) {
+	collection := d.db.Collection(CollectionUTXOs)
+
+	filter := bson.M{
+		"status": models.UTXOStatusAvailable,
+		"type":   utxoType,
+	}
+
+	opts := options.Find().SetLimit(int64(limit))
+	cursor, err := collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var utxos []*models.UTXO
+	if err := cursor.All(ctx, &utxos); err != nil {
+		return nil, err
+	}
+
+	return utxos, nil
+}
+
+// Client Management Methods
+
+// CreateClient creates a new API client
+func (d *Database) CreateClient(ctx context.Context, client *models.Client) error {
+	collection := d.db.Collection(CollectionClients)
+	_, err := collection.InsertOne(ctx, client)
+	return err
+}
+
+// GetClientByAPIKeyHash retrieves a client by their hashed API key
+func (d *Database) GetClientByAPIKeyHash(ctx context.Context, apiKeyHash string) (*models.Client, error) {
+	collection := d.db.Collection(CollectionClients)
+
+	var client models.Client
+	err := collection.FindOne(ctx, bson.M{"api_key_hash": apiKeyHash}).Decode(&client)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("invalid API key")
+		}
+		return nil, err
+	}
+
+	return &client, nil
+}
+
+// IncrementClientTxCount increments the transaction count for a client
+// Resets the counter if it's a new day
+func (d *Database) IncrementClientTxCount(ctx context.Context, clientID interface{}, today string) error {
+	collection := d.db.Collection(CollectionClients)
+
+	// First, check if we need to reset the counter
+	var client models.Client
+	err := collection.FindOne(ctx, bson.M{"_id": clientID}).Decode(&client)
+	if err != nil {
+		return err
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"updated_at": time.Now(),
+		},
+	}
+
+	// If it's a new day, reset the counter
+	if client.LastResetDate != today {
+		update["$set"].(bson.M)["tx_count"] = 1
+		update["$set"].(bson.M)["last_reset_date"] = today
+	} else {
+		update["$inc"] = bson.M{"tx_count": 1}
+	}
+
+	_, err = collection.UpdateOne(ctx, bson.M{"_id": clientID}, update)
+	return err
+}
+
+// UpdateClientStatus activates or deactivates a client
+func (d *Database) UpdateClientStatus(ctx context.Context, clientID interface{}, isActive bool) error {
+	collection := d.db.Collection(CollectionClients)
+
+	update := bson.M{
+		"$set": bson.M{
+			"is_active":  isActive,
+			"updated_at": time.Now(),
+		},
+	}
+
+	_, err := collection.UpdateOne(ctx, bson.M{"_id": clientID}, update)
+	return err
+}
+
+// ListClients returns all registered clients
+func (d *Database) ListClients(ctx context.Context) ([]*models.Client, error) {
+	collection := d.db.Collection(CollectionClients)
+
+	cursor, err := collection.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var clients []*models.Client
+	if err := cursor.All(ctx, &clients); err != nil {
+		return nil, err
+	}
+
+	return clients, nil
 }
 
 // Close closes the database connection

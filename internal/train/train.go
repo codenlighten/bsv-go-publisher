@@ -210,3 +210,13 @@ func (t *Train) broadcastBatch(batch []TxWork) {
 func (t *Train) QueueSize() int {
 	return len(t.txQueue)
 }
+
+// IsRunning returns true if the train is still processing
+func (t *Train) IsRunning() bool {
+	select {
+	case <-t.ctx.Done():
+		return false
+	default:
+		return true
+	}
+}

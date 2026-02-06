@@ -24,6 +24,7 @@ services:
       - TRAIN_INTERVAL=${TRAIN_INTERVAL:-3s}
       - TRAIN_MAX_BATCH=${TRAIN_MAX_BATCH:-1000}
       - TARGET_PUBLISHING_UTXOS=${TARGET_PUBLISHING_UTXOS:-50000}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     ulimits:
       nofile:
         soft: 65535

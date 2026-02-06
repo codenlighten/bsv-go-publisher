@@ -1,8 +1,10 @@
 # BSV AKUA Broadcast Server
 
-A high-throughput, concurrent Bitcoin SV (BSV) OP_RETURN publishing server designed to handle massive scale with 50,000+ publishing UTXOs. Built for the AKUA broadcast network.
+A high-throughput, concurrent Bitcoin SV (BSV) OP_RETURN publishing server designed to handle massive scale with 50,000+ publishing UTXOs. **Now with enterprise-grade security featuring API key authentication, ECDSA signature verification, and admin control panel.**
 
-🌐 **Live Production API:** https://api.govhash.org
+🌐 **Live Production API:** https://api.govhash.org  
+🔒 **Security Docs:** [docs/SECURITY.md](docs/SECURITY.md)  
+📚 **Client Examples:** [examples/CLIENT_EXAMPLES.md](examples/CLIENT_EXAMPLES.md)
 
 ## Overview
 
@@ -15,6 +17,31 @@ This is a production-ready Go server that:
 - **Tracks requests** with UUIDs and provides status endpoints
 - **Auto-recovers** from crashes with startup recovery routine
 - **Gracefully shuts down** to finish in-flight batches
+- **🆕 4-Layer Security:** API Key + ECDSA Signature + UTXO Lock + Train Batch
+- **🆕 Client Management:** Registration, rate limiting, domain isolation
+- **🆕 Admin Tools:** UTXO consolidation, emergency controls
+
+## 🔒 Security Features (NEW)
+
+### Authentication
+
+- **API Key:** SHA-256 hashed, crypto/rand generated, prefixed with `gh_`
+- **ECDSA Signatures:** Non-repudiation via Bitcoin-standard double SHA-256 + ECDSA
+- **Rate Limiting:** Daily transaction quotas per client (configurable)
+- **Domain Isolation:** Multi-tenant support (govhash.org vs notaryhash.com)
+
+### Admin Features
+
+- **Client Registration:** Onboard new clients with API keys
+- **UTXO Sweeper:** Consolidate multiple UTXOs to reduce database bloat
+- **Emergency Kill Switch:** Stop train worker gracefully
+- **Activation Controls:** Enable/disable client access
+
+### Documentation
+
+- **Security Architecture:** [docs/SECURITY.md](docs/SECURITY.md)
+- **Client Integration:** [examples/CLIENT_EXAMPLES.md](examples/CLIENT_EXAMPLES.md) (JS, Python, Go)
+- **Status Tracking:** [STATUS.md](STATUS.md)
 
 ## 🚀 Quick Start
 
@@ -22,7 +49,7 @@ This is a production-ready Go server that:
 # 1. Copy environment template
 cp .env.example .env
 
-# 2. Edit .env with your ARC_TOKEN and settings
+# 2. Edit .env with your ARC_TOKEN, ADMIN_PASSWORD, and settings
 # Then either run setup wizard or use compose directly
 
 # 3. Start services
@@ -31,8 +58,18 @@ make run
 # 4. Check logs
 make logs
 
-# 5. Test with curl
-make publish DATA=48656c6c6f  # "Hello" in hex
+# 5. Register a client (admin only)
+curl -X POST https://api.govhash.org/admin/clients/register \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Password: your_admin_password" \
+  -d '{
+    "name": "My App",
+    "public_key": "02abc...",
+    "max_daily_tx": 1000
+  }'
+
+# 6. Test authenticated publish (see CLIENT_EXAMPLES.md for signing code)
+# Client must sign data with their private key before sending
 ```
 
 See [QUICKSTART.md](QUICKSTART.md) for detailed setup instructions.
@@ -47,6 +84,8 @@ See [QUICKSTART.md](QUICKSTART.md) for detailed setup instructions.
 - **Atomic Locking**: Thread-safe UTXO acquisition using MongoDB's FindOneAndUpdate
 - **Recovery System**: Startup recovery + background janitor for stuck UTXOs
 - **Graceful Shutdown**: Ensures in-flight batches complete before shutdown (30s grace)
+- **🆕 Authentication Middleware**: API key + signature verification on all publish endpoints
+- **🆕 Client Management**: MongoDB-backed client registry with rate limiting
 
 ### UTXO Categories
 
