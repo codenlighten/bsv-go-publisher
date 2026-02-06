@@ -4,7 +4,7 @@
 **Project Status:** 🚀 **LIVE IN PRODUCTION** - Deployed to Digital Ocean  
 **Build Status:** ✅ Successfully compiles with official SDK v1.2.16  
 **SDK:** bsv-blockchain/go-sdk v1.2.16 (official, maintained)  
-**Production URL:** http://api.govhash.org:8080  
+**Production URL:** https://api.govhash.org (HTTPS with Let's Encrypt)  
 **GitHub:** https://github.com/codenlighten/bsv-go-publisher
 
 ---
@@ -306,26 +306,27 @@ db.utxos.createIndex({ status: 1, locked_at: 1 })
 **Infrastructure:**
 - **Platform:** Digital Ocean Droplet (134.209.4.149)
 - **Domain:** api.govhash.org
+- **SSL/TLS:** Let's Encrypt (auto-renewal enabled)
+- **Reverse Proxy:** nginx with HTTP → HTTPS redirect
 - **DNS Records:** @ (root), www, api, * (wildcard) → 134.209.4.149
-- **Container Platform:** Docker + Docker Compose
-- **Database:** MongoDB 7 (containerized)
+- **Container Platform:** Docker + Docker Compose (restart: always)
+- **Database:** MongoDB 7 (containerized, persistent volumes)
 - **Uptime:** Since February 6, 2026
 
 **Live Endpoints:**
-- `POST http://api.govhash.org:8080/publish` - Submit OP_RETURN data
-- `GET http://api.govhash.org:8080/status/:uuid` - Check transaction status
-- `GET http://api.govhash.org:8080/health` - Health check with UTXO stats
-- `GET http://api.govhash.org:8080/admin/stats` - Detailed statistics
+- `POST https://api.govhash.org/publish` - Submit OP_RETURN data
+- `GET https://api.govhash.org/status/:uuid` - Check transaction status
+- `GET https://api.govhash.org/health` - Health check with UTXO stats
+- `GET https://api.govhash.org/admin/stats` - Detailed statistics
 
 **Current UTXO Pool:**
-- 49,898 publishing UTXOs available
+- 49,897 publishing UTXOs available
 - 50 funding UTXOs (for future splits)
-- 1 transaction broadcast successfully
+- 2 transactions broadcast successfully
 
-**First Production Transaction:**
-- TX ID: 2b2787ca1ca4a5e46e2e782ddb8b0b8d2d35eefef088f2b353ae8f8605cba4f5
-- Message: "Hello from DigitalOcean"
-- Status: SEEN_ON_NETWORK ✅
+**Production Transactions:**
+- TX 1: 2b2787ca1ca4a5e46e2e782ddb8b0b8d2d35eefef088f2b353ae8f8605cba4f5 (HTTP test)
+- TX 2: 3e1bef92e6893c23d7c53210527f04586116c0d8153879c1049846bc9e7ba326 (HTTPS test)
 
 ---
 

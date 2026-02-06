@@ -2,6 +2,8 @@
 
 A high-throughput, concurrent Bitcoin SV (BSV) OP_RETURN publishing server designed to handle massive scale with 50,000+ publishing UTXOs. Built for the AKUA broadcast network.
 
+🌐 **Live Production API:** https://api.govhash.org
+
 ## Overview
 
 This is a production-ready Go server that:
