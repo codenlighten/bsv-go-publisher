@@ -3,7 +3,8 @@
 A high-throughput, concurrent Bitcoin SV (BSV) OP_RETURN publishing server designed to handle massive scale with 50,000+ publishing UTXOs. **Now with enterprise-grade security featuring API key authentication, ECDSA signature verification, and admin control panel.**
 
 🌐 **Live Production API:** https://api.govhash.org  
-🔒 **Security Docs:** [docs/SECURITY.md](docs/SECURITY.md)  
+� **API Reference:** [docs/API_REFERENCE.md](docs/API_REFERENCE.md)  
+�🔒 **Security Docs:** [docs/SECURITY.md](docs/SECURITY.md)  
 📚 **Client Examples:** [examples/CLIENT_EXAMPLES.md](examples/CLIENT_EXAMPLES.md)
 
 ## Overview
