@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GovHash | Validation & Verification Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .verified-glow { box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
+        .error-glow { box-shadow: 0 0 15px rgba(239, 68, 68, 0.2); }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-900">
+
+    <nav class="bg-slate-900 text-white py-4 shadow-xl">
+        <div class="max-w-7xl mx-auto px-4 flex justify-between items-center">
+            <a href="/" class="flex items-center space-x-2 hover:opacity-80 transition">
+                <i class="fa-solid fa-building-columns text-emerald-500"></i>
+                <span class="text-xl font-bold tracking-tight">GOV<span class="text-emerald-500">HASH</span></span>
+            </a>
+            <div class="text-xs uppercase tracking-widest text-slate-400 font-semibold">
+                Official Verification Portal v1.0
+            </div>
+        </div>
+    </nav>
+
+    <section class="py-16 bg-white border-b border-slate-200">
+        <div class="max-w-4xl mx-auto px-4 text-center">
+            <h1 class="text-3xl font-extrabold text-slate-900 mb-4">Validate Official Record</h1>
+            <p class="text-slate-600 mb-8">Enter a UUID or Transaction ID (TXID) to retrieve the immutable blockchain attestation certificate.</p>
+            
+            <div class="relative max-w-2xl mx-auto">
+                <input type="text" id="verifyInput" placeholder="Enter UUID or 64-character TXID..." 
+                       class="w-full pl-12 pr-32 py-4 bg-slate-100 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none transition font-mono text-sm">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <button id="verifyBtn" onclick="verifyRecord()" class="absolute right-2 top-2 bottom-2 bg-emerald-600 text-white px-6 rounded-lg font-bold hover:bg-emerald-500 transition">Verify</button>
+            </div>
+        </div>
+    </section>
+
+    <main class="max-w-4xl mx-auto px-4 py-12">
+        <!-- Result container - initially hidden -->
+        <div id="resultContainer" class="hidden">
+            <!-- Success state -->
+            <div id="successResult" class="bg-white rounded-2xl border border-slate-200 overflow-hidden verified-glow hidden">
+                <div class="bg-emerald-50 border-b border-emerald-100 px-8 py-6 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="bg-emerald-500 text-white p-2 rounded-full">
+                            <i class="fa-solid fa-check"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-bold text-emerald-900">Attestation Verified</h2>
+                            <p class="text-xs text-emerald-700">Record matches BSV Blockchain State</p>
+                        </div>
+                    </div>
+                    <button onclick="exportCertificate()" class="text-emerald-700 text-sm font-bold hover:underline">
+                        <i class="fa-solid fa-file-pdf mr-1"></i> Export Certificate
+                    </button>
+                </div>
+
+                <div class="p-8 space-y-8">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">UUID</label>
+                            <p id="resultUuid" class="font-mono text-sm break-all text-slate-700 mt-1">-</p>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Status</label>
+                            <p id="resultStatus" class="text-slate-700 font-semibold mt-1">-</p>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-100">
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Transaction ID</label>
+                            <p id="resultTxid" class="font-mono text-xs break-all text-slate-700 mt-1">-</p>
+                            <a id="resultTxidLink" href="#" target="_blank" class="text-emerald-600 text-xs hover:underline mt-1 inline-block">
+                                <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> View on WhatsOnChain
+                            </a>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Blockchain Timestamp</label>
+                            <p id="resultTimestamp" class="text-slate-700 font-semibold mt-1">-</p>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-100">
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">ARC Network Status</label>
+                            <div class="flex items-center space-x-2 mt-2">
+                                <span id="resultArcStatus" class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">-</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Record Created</label>
+                            <p id="resultCreated" class="text-slate-700 text-sm mt-1">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error state -->
+            <div id="errorResult" class="bg-white rounded-2xl border border-red-200 overflow-hidden error-glow hidden">
+                <div class="bg-red-50 border-b border-red-100 px-8 py-6 flex items-center space-x-3">
+                    <div class="bg-red-500 text-white p-2 rounded-full">
+                        <i class="fa-solid fa-xmark"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-red-900">Record Not Found</h2>
+                        <p class="text-xs text-red-700">No matching attestation found in the blockchain registry</p>
+                    </div>
+                </div>
+                <div class="p-8">
+                    <p class="text-slate-600">The UUID or TXID you entered could not be verified. Please check your input and try again.</p>
+                </div>
+            </div>
+
+            <!-- Loading state -->
+            <div id="loadingResult" class="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+                <p class="text-slate-600">Querying blockchain registry...</p>
+            </div>
+        </div>
+
+        <div class="mt-12 text-center">
+            <p class="text-slate-400 text-sm italic">
+                This verification portal queries the GovHash real-time indexer and the BSV global ledger.
+            </p>
+        </div>
+    </main>
+
+    <footer class="py-8 text-center text-slate-400 text-xs border-t border-slate-200 mt-20">
+        &copy; 2026 SmartLedger.Technology. GovHash Institutional Node: <span class="text-emerald-500 font-semibold">Running</span>
+    </footer>
+
+    <script>
+        // Allow Enter key to trigger verification
+        document.getElementById('verifyInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                verifyRecord();
+            }
+        });
+
+        async function verifyRecord() {
+            const input = document.getElementById('verifyInput').value.trim();
+            
+            if (!input) {
+                alert('Please enter a UUID or TXID');
+                return;
+            }
+
+            // Show result container and loading state
+            const container = document.getElementById('resultContainer');
+            const loading = document.getElementById('loadingResult');
+            const success = document.getElementById('successResult');
+            const error = document.getElementById('errorResult');
+
+            container.classList.remove('hidden');
+            loading.classList.remove('hidden');
+            success.classList.add('hidden');
+            error.classList.add('hidden');
+
+            try {
+                // Query the API
+                const response = await fetch(`https://api.govhash.org/status/${input}`);
+                
+                if (!response.ok) {
+                    throw new Error('Record not found');
+                }
+
+                const data = await response.json();
+
+                // Hide loading, show success
+                loading.classList.add('hidden');
+                success.classList.remove('hidden');
+
+                // Populate data
+                document.getElementById('resultUuid').textContent = data.uuid || '-';
+                document.getElementById('resultStatus').textContent = data.status || '-';
+                document.getElementById('resultTxid').textContent = data.txid || '-';
+                document.getElementById('resultArcStatus').textContent = data.arcStatus || '-';
+                
+                // Format timestamps
+                if (data.createdAt) {
+                    const created = new Date(data.createdAt);
+                    document.getElementById('resultCreated').textContent = created.toLocaleString();
+                }
+                
+                if (data.updatedAt) {
+                    const updated = new Date(data.updatedAt);
+                    document.getElementById('resultTimestamp').textContent = updated.toLocaleString('en-US', {
+                        month: 'short',
+                        day: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        timeZone: 'UTC',
+                        timeZoneName: 'short'
+                    });
+                }
+
+                // Set WhatsOnChain link
+                if (data.txid) {
+                    document.getElementById('resultTxidLink').href = `https://whatsonchain.com/tx/${data.txid}`;
+                }
+
+            } catch (err) {
+                // Hide loading, show error
+                loading.classList.add('hidden');
+                error.classList.remove('hidden');
+            }
+        }
+
+        function exportCertificate() {
+            // Generate a simple text certificate
+            const uuid = document.getElementById('resultUuid').textContent;
+            const txid = document.getElementById('resultTxid').textContent;
+            const timestamp = document.getElementById('resultTimestamp').textContent;
+            const arcStatus = document.getElementById('resultArcStatus').textContent;
+
+            const certificate = `
+═══════════════════════════════════════════════════════════
+              GOVHASH ATTESTATION CERTIFICATE
+═══════════════════════════════════════════════════════════
+
+This certifies that the following record has been immutably
+attested on the Bitcoin SV (BSV) blockchain:
+
+UUID: ${uuid}
+Transaction ID: ${txid}
+Blockchain Timestamp: ${timestamp}
+Network Status: ${arcStatus}
+
+This attestation provides cryptographic proof of the document's
+existence at the specified timestamp and cannot be altered or
+backdated.
+
+Verification URL: https://govhash.org/verify.html
+Blockchain Explorer: https://whatsonchain.com/tx/${txid}
+
+═══════════════════════════════════════════════════════════
+Generated: ${new Date().toISOString()}
+Issuer: GovHash Institutional Node
+Powered by: SmartLedger.Technology
+═══════════════════════════════════════════════════════════
+            `.trim();
+
+            // Create a blob and download
+            const blob = new Blob([certificate], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `govhash-certificate-${uuid}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+
+</body>
+</html>

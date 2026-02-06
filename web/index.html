@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GovHash | Institutional Blockchain Document Attestation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .hero-gradient { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
+        .accent-gold { color: #d4af37; }
+        .bg-gov-blue { background-color: #1e293b; }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-slate-900">
+
+    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-20">
+                <div class="flex items-center">
+                    <span class="text-2xl font-bold tracking-tight text-slate-800">GOV<span class="text-emerald-600">HASH</span></span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8 text-sm font-medium">
+                    <a href="#compliance" class="hover:text-emerald-600 transition">Compliance</a>
+                    <a href="#audit" class="hover:text-emerald-600 transition">Audit Trails</a>
+                    <a href="#api" class="hover:text-emerald-600 transition">Network Stats</a>
+                    <a href="/verify.html" class="bg-slate-800 text-white px-5 py-2 rounded-md hover:bg-slate-700 transition">Verify Records</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero-gradient text-white py-24">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div class="inline-flex items-center space-x-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-4 py-1 mb-8">
+                <span class="relative flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+                <span class="text-emerald-400 text-xs font-semibold uppercase tracking-wider">Blockchain Network Active</span>
+            </div>
+            <h1 class="text-5xl md:text-6xl font-extrabold mb-6">Government-Grade <br><span class="text-emerald-500">Document Integrity</span></h1>
+            <p class="text-xl text-slate-300 max-w-2xl mx-auto mb-10">
+                High-throughput immutable attestation for official records, regulatory filings, and administrative transparency. Powered by BSV Blockchain.
+            </p>
+            <div class="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4">
+                <button class="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-lg font-bold text-lg transition shadow-lg">Request Integration</button>
+                <a href="/verify.html" class="bg-white/10 hover:bg-white/20 text-white border border-white/30 px-8 py-4 rounded-lg font-bold text-lg transition text-center">View Compliance Framework</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="bg-white border-b border-gray-200 py-6">
+        <div class="max-w-7xl mx-auto px-4 flex flex-wrap justify-around items-center text-center gap-8">
+            <div>
+                <p class="text-xs text-slate-500 uppercase font-bold tracking-widest">Available Capacity</p>
+                <p class="text-2xl font-mono font-bold text-slate-800" id="utxo-count">50,000 UTXOs</p>
+            </div>
+            <div class="h-8 w-px bg-gray-200 hidden md:block"></div>
+            <div>
+                <p class="text-xs text-slate-500 uppercase font-bold tracking-widest">Broadcast Frequency</p>
+                <p class="text-2xl font-mono font-bold text-slate-800">3.0s Ticker</p>
+            </div>
+            <div class="h-8 w-px bg-gray-200 hidden md:block"></div>
+            <div>
+                <p class="text-xs text-slate-500 uppercase font-bold tracking-widest">Chain Latency</p>
+                <p class="text-2xl font-mono font-bold text-emerald-600">&lt; 5s SLA</p>
+            </div>
+        </div>
+    </div>
+
+    <section id="compliance" class="py-20 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-bold text-slate-900">Institutional Compliance Standards</h2>
+                <div class="w-16 h-1 bg-emerald-500 mx-auto mt-4"></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                    <div class="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center mb-6">
+                        <i class="fa-solid fa-gavel text-slate-700 text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-4">Legal Admissibility</h3>
+                    <p class="text-slate-600">RFC 3161 compliant timestamping ensures every record meets the highest standards for judicial evidence and legal discovery.</p>
+                </div>
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                    <div class="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center mb-6">
+                        <i class="fa-solid fa-shield-check text-slate-700 text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-4">Regulatory Audit Trails</h3>
+                    <p class="text-slate-600">Full lifecycle tracking of documents with cryptographically linked hash-chains, providing an unbreakable audit history.</p>
+                </div>
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                    <div class="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center mb-6">
+                        <i class="fa-solid fa-building-columns text-slate-700 text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-4">Sovereign Data Control</h3>
+                    <p class="text-slate-600">Leverage blockchain immutability while maintaining strict data residency and privacy through zero-knowledge indexing.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="api" class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-bold text-slate-900">API Integration</h2>
+                <div class="w-16 h-1 bg-emerald-500 mx-auto mt-4"></div>
+                <p class="text-slate-600 mt-4 max-w-2xl mx-auto">Connect your systems to the GovHash network with our RESTful API</p>
+            </div>
+            <div class="bg-slate-900 rounded-2xl p-8 text-white font-mono text-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-emerald-400">POST /publish</span>
+                    <span class="text-slate-500">Submit Document Hash</span>
+                </div>
+                <pre class="text-slate-300 overflow-x-auto"><code>{
+  "data": "48656c6c6f20576f726c64" // Hex-encoded hash
+}</code></pre>
+                <div class="mt-6 pt-6 border-t border-slate-700">
+                    <div class="text-emerald-400 mb-2">Response:</div>
+                    <pre class="text-slate-300"><code>{
+  "uuid": "2b7998f5-b32e-4845-8ea6-f4f281ec1436",
+  "message": "Transaction queued for broadcast"
+}</code></pre>
+                </div>
+            </div>
+            <div class="text-center mt-8">
+                <a href="https://api.govhash.org/health" target="_blank" class="text-emerald-600 font-semibold hover:underline">
+                    <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> View Live API Status
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-gov-blue text-white py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between border-b border-slate-700 pb-12">
+                <div class="mb-8 md:mb-0">
+                    <span class="text-2xl font-bold tracking-tight">GOV<span class="text-emerald-500">HASH</span></span>
+                    <p class="mt-4 text-slate-400 max-w-xs text-sm">
+                        SmartLedger.Technology solutions for secure government infrastructure and official document attestation.
+                    </p>
+                </div>
+                <div class="grid grid-cols-2 gap-12 sm:grid-cols-3">
+                    <div>
+                        <h4 class="text-xs font-bold uppercase text-slate-500 mb-4">Resources</h4>
+                        <ul class="space-y-2 text-sm text-slate-300">
+                            <li><a href="https://api.govhash.org/health" class="hover:text-emerald-500 transition">API Health</a></li>
+                            <li><a href="/verify.html" class="hover:text-emerald-500 transition">Verification Portal</a></li>
+                            <li><a href="https://github.com/codenlighten/bsv-go-publisher" class="hover:text-emerald-500 transition" target="_blank">Open Source</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold uppercase text-slate-500 mb-4">Legal</h4>
+                        <ul class="space-y-2 text-sm text-slate-300">
+                            <li><a href="#" class="hover:text-emerald-500 transition">Privacy</a></li>
+                            <li><a href="#compliance" class="hover:text-emerald-500 transition">Compliance</a></li>
+                            <li><a href="#" class="hover:text-emerald-500 transition">Transparency</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="pt-8 text-center text-slate-500 text-xs">
+                &copy; 2026 SmartLedger.Technology. All rights reserved. Blockchain operations secured by BSV.
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Fetch live UTXO count from API
+        fetch('https://api.govhash.org/health')
+            .then(res => res.json())
+            .then(data => {
+                if (data.utxos && data.utxos.publishing_available) {
+                    document.getElementById('utxo-count').textContent = 
+                        data.utxos.publishing_available.toLocaleString() + ' UTXOs';
+                }
+            })
+            .catch(() => {
+                // Fallback to static display
+            });
+    </script>
+
+</body>
+</html>
