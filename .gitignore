@@ -1,0 +1,34 @@
+# Binaries
+bsv-server
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Environment
+.env
+*.key
+*.priv
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+*.out
+coverage.html
+
+# Temporary files
+tmp/
+temp/
