@@ -5,7 +5,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/akua/bsv-broadcaster/internal/arc"
 	"github.com/akua/bsv-broadcaster/internal/bsv"
@@ -120,12 +122,27 @@ func (s *Server) handlePublish(c *fiber.Ctx) error {
 	// Generate UUID for tracking
 	requestUUID := uuid.New().String()
 
+	// Check if client wants synchronous wait
+	waitForResult := c.Query("wait") == "true"
+	queueSize := s.train.QueueSize()
+
+	// If queue is already full (>1000), fall back to async even if wait=true
+	if waitForResult && queueSize >= 1000 {
+		log.Printf("⚠️  Queue is full (%d), falling back to async mode", queueSize)
+		waitForResult = false
+	}
+
 	// Save to database
 	broadcastReq := &models.BroadcastRequest{
 		UUID:     requestUUID,
 		RawTxHex: rawHex,
 		UTXOUsed: utxo.Outpoint,
 		Status:   models.RequestStatusPending,
+	}
+
+	// Create response channel if synchronous mode
+	if waitForResult {
+		broadcastReq.ResponseChan = make(chan models.BroadcastResult, 1)
 	}
 
 	if err := s.db.InsertBroadcastRequest(c.Context(), broadcastReq); err != nil {
@@ -137,9 +154,10 @@ func (s *Server) handlePublish(c *fiber.Ctx) error {
 
 	// Enqueue for the next train
 	work := train.TxWork{
-		UUID:     requestUUID,
-		RawTxHex: rawHex,
-		UTXOUsed: utxo.Outpoint,
+		UUID:         requestUUID,
+		RawTxHex:     rawHex,
+		UTXOUsed:     utxo.Outpoint,
+		ResponseChan: broadcastReq.ResponseChan,
 	}
 
 	if err := s.train.Enqueue(work); err != nil {
@@ -148,10 +166,61 @@ func (s *Server) handlePublish(c *fiber.Ctx) error {
 		})
 	}
 
+	// If synchronous mode, wait for result
+	if waitForResult {
+		// Get timeout from env var (default 5 seconds)
+		timeoutStr := os.Getenv("SYNC_WAIT_TIMEOUT")
+		timeout := 5 * time.Second
+		if timeoutStr != "" {
+			if duration, err := time.ParseDuration(timeoutStr); err == nil {
+				timeout = duration
+			}
+		}
+
+		select {
+		case result := <-broadcastReq.ResponseChan:
+			if result.Error != nil {
+				// Determine appropriate HTTP status based on error
+				statusCode := 500 // Default to internal server error
+				if strings.Contains(result.Error.Error(), "ARC") {
+					statusCode = 502 // Bad Gateway for ARC errors
+				} else if strings.Contains(result.Error.Error(), "malformed") ||
+					strings.Contains(result.Error.Error(), "fee") {
+					statusCode = 400 // Bad Request for client errors
+				}
+
+				return c.Status(statusCode).JSON(fiber.Map{
+					"error": result.Error.Error(),
+					"uuid":  requestUUID,
+				})
+			}
+
+			// Success - return 201 Created with txid
+			return c.Status(201).JSON(fiber.Map{
+				"success":    true,
+				"txid":       result.TXID,
+				"uuid":       requestUUID,
+				"arc_status": result.ARCStatus,
+				"message":    "Transaction broadcasted successfully",
+			})
+
+		case <-time.After(timeout):
+			// Timeout - fall back to async response
+			log.Printf("⚠️  Sync wait timeout for %s, falling back to async", requestUUID)
+			return c.Status(202).JSON(fiber.Map{
+				"success": true,
+				"uuid":    requestUUID,
+				"status":  "queued",
+				"message": "Queue busy, poll /status/" + requestUUID + " for result",
+			})
+		}
+	}
+
+	// Default async response (202 Accepted)
 	return c.Status(202).JSON(PublishResponse{
 		UUID:       requestUUID,
 		Message:    "Transaction queued for broadcast",
-		QueueDepth: s.train.QueueSize(),
+		QueueDepth: queueSize,
 	})
 }
 

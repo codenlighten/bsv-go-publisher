@@ -14,9 +14,10 @@ import (
 
 // TxWork represents a transaction ready to be broadcast
 type TxWork struct {
-	UUID     string
-	RawTxHex string
-	UTXOUsed string
+	UUID         string
+	RawTxHex     string
+	UTXOUsed     string
+	ResponseChan chan models.BroadcastResult // Optional for sync wait
 }
 
 // Train implements the "train station" batching logic
@@ -170,36 +171,68 @@ func (t *Train) broadcastBatch(batch []TxWork) {
 	for i, resp := range responses {
 		work := batch[i]
 
+		var resultError error
+		var txid string
+		var arcStatus string
+
 		switch resp.TxStatus {
 		case arc.TxStatusAccepted, arc.TxStatusSeenOnNetwork:
 			// Success! Mark UTXO as spent and request as successful
 			t.db.MarkUTXOSpent(ctx, work.UTXOUsed, resp.TxID)
 			t.db.UpdateRequestStatus(ctx, work.UUID, models.RequestStatusSuccess, resp.TxID, string(resp.TxStatus), "")
 			successCount++
+			txid = resp.TxID
+			arcStatus = string(resp.TxStatus)
 
 		case arc.TxStatusMined:
 			// Even better - already mined
 			t.db.MarkUTXOSpent(ctx, work.UTXOUsed, resp.TxID)
 			t.db.UpdateRequestStatus(ctx, work.UUID, models.RequestStatusMined, resp.TxID, string(resp.TxStatus), "")
 			successCount++
+			txid = resp.TxID
+			arcStatus = string(resp.TxStatus)
 
 		case arc.TxStatusDoubleSpend:
 			// Someone else spent this UTXO - mark as spent anyway
 			t.db.MarkUTXOSpent(ctx, work.UTXOUsed, resp.TxID)
 			t.db.UpdateRequestStatus(ctx, work.UUID, models.RequestStatusFailed, "", string(resp.TxStatus), "double spend detected")
 			failCount++
+			resultError = fmt.Errorf("double spend detected")
+			arcStatus = string(resp.TxStatus)
 
 		case arc.TxStatusRejected:
 			// Transaction rejected - unlock UTXO for reuse
 			t.db.UnlockUTXO(ctx, work.UTXOUsed)
 			t.db.UpdateRequestStatus(ctx, work.UUID, models.RequestStatusFailed, "", string(resp.TxStatus), resp.ExtraInfo)
 			failCount++
+			resultError = fmt.Errorf("ARC rejected: %s", resp.ExtraInfo)
+			arcStatus = string(resp.TxStatus)
 
 		default:
 			// Unknown status - mark as failed and unlock UTXO
 			t.db.UnlockUTXO(ctx, work.UTXOUsed)
 			t.db.UpdateRequestStatus(ctx, work.UUID, models.RequestStatusFailed, "", string(resp.TxStatus), resp.ExtraInfo)
 			failCount++
+			resultError = fmt.Errorf("broadcast failed: %s", resp.ExtraInfo)
+			arcStatus = string(resp.TxStatus)
+		}
+
+		// Notify waiting client if they're listening (sync mode)
+		if work.ResponseChan != nil {
+			result := models.BroadcastResult{
+				TXID:      txid,
+				ARCStatus: arcStatus,
+				Error:     resultError,
+			}
+
+			// Non-blocking send (client may have timed out)
+			select {
+			case work.ResponseChan <- result:
+				// Successfully notified
+			default:
+				// Client already timed out, no-op
+			}
+			close(work.ResponseChan)
 		}
 	}
 

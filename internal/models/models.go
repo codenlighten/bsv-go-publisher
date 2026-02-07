@@ -51,6 +51,13 @@ const (
 	RequestStatusFailed     RequestStatus = "failed"     // Broadcast failed
 )
 
+// BroadcastResult contains the result of a broadcast operation
+type BroadcastResult struct {
+	TXID      string
+	ARCStatus string
+	Error     error
+}
+
 // BroadcastRequest tracks a user's OP_RETURN publish request
 type BroadcastRequest struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
@@ -63,4 +70,8 @@ type BroadcastRequest struct {
 	Error     string             `bson:"error,omitempty" json:"error,omitempty"`
 	CreatedAt time.Time          `bson:"created_at" json:"createdAt"`
 	UpdatedAt time.Time          `bson:"updated_at" json:"updatedAt"`
+
+	// ResponseChan is used for synchronous wait mode (?wait=true)
+	// Not persisted to database
+	ResponseChan chan BroadcastResult `bson:"-" json:"-"`
 }

@@ -110,9 +110,12 @@ Get system health and UTXO statistics.
 
 Submit data for blockchain broadcasting.
 
-**Endpoint:** `POST /publish`
+**Endpoint:** `POST /publish[?wait=true]`
 
 **Authentication:** Required (API Key + ECDSA Signature)
+
+**Query Parameters:**
+- `wait` (optional) - Set to `true` for synchronous mode (waits up to 5s for txid)
 
 **Headers:**
 
@@ -135,19 +138,48 @@ X-Nonce: <random_string>
 }
 ```
 
-**Response (202 Accepted):**
+**Response Mode 1: Async (Default - 202 Accepted):**
 
 ```json
 {
   "success": true,
   "uuid": "550e8400-e29b-41d4-a716-446655440000",
   "status": "queued",
-  "message": "Request queued for broadcasting"
+  "message": "Request queued for broadcasting",
+  "queueDepth": 42
+}
+```
+
+**Response Mode 2: Synchronous with `?wait=true` (201 Created):**
+
+If the transaction broadcasts within 5 seconds (configurable):
+
+```json
+{
+  "success": true,
+  "txid": "abc123def456...",
+  "uuid": "550e8400-e29b-41d4-a716-446655440000",
+  "arc_status": "SEEN_ON_NETWORK",
+  "message": "Transaction broadcasted successfully"
+}
+```
+
+**Response Mode 3: Sync Timeout (202 Accepted):**
+
+If queue is busy and broadcast takes >5s, falls back to async:
+
+```json
+{
+  "success": true,
+  "uuid": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "queued",
+  "message": "Queue busy, poll /status/550e8400-e29b-41d4-a716-446655440000 for result"
 }
 ```
 
 **Status Codes:**
-- `202 Accepted` - Request queued successfully
+- `201 Created` - Transaction successfully broadcasted (sync mode)
+- `202 Accepted` - Request queued successfully (async mode or timeout)
 - `400 Bad Request` - Invalid request body
 - `401 Unauthorized` - Invalid API key or signature
 - `403 Forbidden` - Client inactive or quota exceeded
@@ -659,12 +691,55 @@ X-RateLimit-Reset: 1675728000
 
 ## Best Practices
 
-### 1. Signature Security
+### 1. Choosing Async vs Synchronous Mode
 
-- **Never expose private keys** in client-side code
-- **Rotate keys** if compromised
-- **Use unique nonces** for replay protection
-- **Validate timestamps** (max 5 min clock skew)
+**Use Async Mode (Default):**
+- High-volume automated systems
+- Batch processing
+- Background jobs
+- When you need immediate acknowledgment
+
+**Use Synchronous Mode (`?wait=true`):**
+- Web forms with user feedback
+- Interactive applications
+- Manual document attestation
+- When you need the txid immediately
+
+**Example - Synchronous Upload:**
+
+```javascript
+async function uploadDocument(data) {
+  try {
+    // Use ?wait=true for instant txid
+    const response = await fetch('https://api.govhash.org/publish?wait=true', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': API_KEY,
+        'X-Signature': signature,
+        'X-Timestamp': timestamp,
+        'X-Nonce': nonce,
+      },
+      body: JSON.stringify({ op_return: data }),
+    });
+
+    const result = await response.json();
+
+    if (response.status === 201) {
+      // Got txid immediately!
+      console.log('Transaction ID:', result.txid);
+      return result.txid;
+    } else if (response.status === 202) {
+      // Queue was busy, fell back to async
+      console.log('Polling for result...');
+      return await waitForBroadcast(result.uuid);
+    }
+  } catch (error) {
+    console.error('Broadcast failed:', error);
+    throw error;
+  }
+}
+```
 
 ### 2. Error Handling
 
