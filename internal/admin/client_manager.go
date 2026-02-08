@@ -60,6 +60,11 @@ func (cm *ClientManager) GetClientByAPIKey(ctx context.Context, apiKey string) (
 	return cm.db.GetClientByAPIKeyHash(ctx, hashedKey)
 }
 
+// GetClientByID retrieves a client by their ObjectID
+func (cm *ClientManager) GetClientByID(ctx context.Context, clientID primitive.ObjectID) (*models.Client, error) {
+	return cm.db.GetClientByID(ctx, clientID)
+}
+
 // IncrementClientTxCount increments the transaction count for a client
 // Resets the counter if it's a new day
 func (cm *ClientManager) IncrementClientTxCount(ctx context.Context, clientID primitive.ObjectID) error {
