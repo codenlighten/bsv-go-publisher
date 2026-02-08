@@ -529,6 +529,44 @@ const App: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Footer */}
+        <footer className="bg-white border-t border-slate-200 px-4 sm:px-8 py-6 mt-auto">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="text-center md:text-left">
+                <p className="text-sm font-semibold text-slate-800">
+                  Powered by <span className="text-indigo-600">SmartLedger.Technology</span>
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  © 2026 SmartLedger Blockchain Solutions Inc. • Military grade blockchain operations
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Contact: <a href="mailto:youfriends@smartledger.solutions" className="text-indigo-600 hover:text-indigo-700 font-medium">youfriends@smartledger.solutions</a>
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-slate-600">
+                <div className="flex items-center space-x-2">
+                  <span className="font-semibold text-slate-700">UEI:</span>
+                  <span className="font-mono">C5RUDT3WS844</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="font-semibold text-slate-700">CAGE:</span>
+                  <span className="font-mono">10HF4</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="font-semibold text-slate-700">NAICS:</span>
+                  <span className="font-mono">541690</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-slate-100 text-center">
+              <p className="text-xs text-slate-500">
+                Enrolled in the Simplified Acquisition Program of US Federal Contractor Registration (USFCR)
+              </p>
+            </div>
+          </div>
+        </footer>
       </main>
 
       {/* Register Client Modal */}

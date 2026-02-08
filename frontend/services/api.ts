@@ -1,5 +1,13 @@
 // API Service Layer for GovHash Admin Portal
 
+interface ImportMetaEnv {
+  readonly VITE_API_URL: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.govhash.org';
 
 // Store admin password in sessionStorage after login
