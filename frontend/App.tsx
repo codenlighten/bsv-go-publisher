@@ -1,58 +1,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Client, ClientTier, SystemStats, HealthCheckResponse } from './types';
+import { Client, ClientTier, SystemStats, HealthCheckResponse, ThroughputPoint, AdminStatsResponse } from './types';
 import { TIER_CONFIG, Icons } from './constants';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-
-// Mock Data
-const INITIAL_CLIENTS: Client[] = [
-  {
-    id: 'cl_8f237d',
-    name: 'NotaryHash Enterprise',
-    api_key: 'gh_live_a1b2c3d4e5f6',
-    tier: ClientTier.ENTERPRISE,
-    max_daily_tx: 100000,
-    require_signature: true,
-    allowed_ips: ['192.168.1.1'],
-    public_key: '04a6e5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6',
-    created_at: '2023-10-15T10:00:00Z',
-    status: 'active',
-    current_day_tx: 45230,
-    grace_period_hours: 48
-  },
-  {
-    id: 'cl_23a10b',
-    name: 'AKUA Pilot App',
-    api_key: 'gh_test_k9j8h7g6f5d4',
-    tier: ClientTier.PILOT,
-    max_daily_tx: 10000,
-    require_signature: false,
-    allowed_ips: ['127.0.0.1'],
-    created_at: '2023-11-20T14:30:00Z',
-    status: 'active',
-    current_day_tx: 1205
-  }
-];
-
-const MOCK_STATS: SystemStats = {
-  total_tx_24h: 125430,
-  active_clients: 42,
-  utxo_count: 5200,
-  health_status: 'operational',
-  avg_broadcast_latency: 142
-};
-
-const CHART_DATA = [
-  { time: '00:00', tx: 4500 },
-  { time: '04:00', tx: 3200 },
-  { time: '08:00', tx: 8900 },
-  { time: '12:00', tx: 12500 },
-  { time: '16:00', tx: 9800 },
-  { time: '20:00', tx: 7400 },
-  { time: '23:59', tx: 5100 },
-];
+import { clientAPI, healthAPI, authAPI, getAdminPassword } from './services/api';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) => (
   <button
@@ -76,9 +29,11 @@ const App: React.FC = () => {
     health_status: 'operational',
     avg_broadcast_latency: 0
   });
+  const [throughputData, setThroughputData] = useState<ThroughputPoint[]>([]);
+  const [health, setHealth] = useState<HealthCheckResponse | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [adminPassword, setAdminPassword] = useState('');
+  const [adminPassword, setAdminPassword] = useState(getAdminPassword());
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -87,51 +42,53 @@ const App: React.FC = () => {
   // Fetch real data from API
   useEffect(() => {
     if (!isAuthorized) return;
-    
+
     const fetchData = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        // Fetch clients
-        const clientsResponse = await fetch('https://api.govhash.org/admin/clients/list', {
-          headers: { 'X-Admin-Password': adminPassword }
+        const [rawClients, statsData, healthData] = await Promise.all([
+          clientAPI.list(),
+          healthAPI.stats() as Promise<AdminStatsResponse>,
+          healthAPI.check() as Promise<HealthCheckResponse>
+        ]);
+
+        const mappedClients = (rawClients || []).map((c: any) => {
+          const maxDailyTx = c.maxDailyTx ?? 0;
+          let tier = ClientTier.PILOT;
+          if (maxDailyTx >= 100000) {
+            tier = ClientTier.GOVERNMENT;
+          } else if (maxDailyTx >= 10000) {
+            tier = ClientTier.ENTERPRISE;
+          }
+
+          return {
+            id: c.id,
+            name: c.name,
+            api_key: '***hidden***',
+            tier,
+            max_daily_tx: maxDailyTx,
+            require_signature: !!c.publicKey,
+            allowed_ips: [],
+            public_key: c.publicKey,
+            created_at: c.createdAt,
+            status: c.isActive ? 'active' : 'suspended',
+            current_day_tx: c.txCount ?? 0
+          } as Client;
         });
-        const clientsData = await clientsResponse.json();
-        
-        // Fetch stats
-        const statsResponse = await fetch('https://api.govhash.org/admin/stats');
-        const statsData = await statsResponse.json();
-        
-        // Fetch health
-        const healthResponse = await fetch('https://api.govhash.org/health');
-        const healthData = await healthResponse.json();
-        
-        // Map API clients to UI format
-        const mappedClients = (clientsData.clients || []).map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          api_key: '***hidden***',
-          tier: c.maxDailyTx > 10000 ? ClientTier.ENTERPRISE : ClientTier.PILOT,
-          max_daily_tx: c.maxDailyTx,
-          require_signature: !!c.publicKey,
-          allowed_ips: [],
-          public_key: c.publicKey,
-          created_at: c.createdAt,
-          status: c.isActive ? 'active' : 'suspended',
-          current_day_tx: c.txCount
-        }));
-        
+
+        const activeCount = mappedClients.filter((c) => c.status === 'active').length;
         setClients(mappedClients);
-        
-        // Update stats with real data
+        setHealth(healthData);
+        setThroughputData(statsData.throughput || []);
+
         setStats({
-          total_tx_24h: 0, // TODO: Add this to API
-          active_clients: clientsData.clients?.filter((c: any) => c.isActive).length || 0,
-          utxo_count: statsData.utxos.publishing_available || 0,
+          total_tx_24h: statsData.broadcasts24h || 0,
+          active_clients: activeCount,
+          utxo_count: statsData.utxos?.publishing_available || 0,
           health_status: healthData.status === 'healthy' ? 'operational' : 'degraded',
-          avg_broadcast_latency: 0 // TODO: Add this to API
+          avg_broadcast_latency: statsData.avgLatencyMs ? Math.round(statsData.avgLatencyMs) : 0
         });
-        
       } catch (err) {
         console.error('Failed to fetch data:', err);
         setError('Failed to load data from API');
@@ -139,12 +96,11 @@ const App: React.FC = () => {
         setIsLoading(false);
       }
     };
-    
+
     fetchData();
-    const interval = setInterval(fetchData, 10000); // Refresh every 10s
-    
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
-  }, [isAuthorized, adminPassword]);
+  }, [isAuthorized]);
   // Filtered Clients
   const filteredClients = useMemo(() => {
     return clients.filter(c => 
@@ -157,31 +113,38 @@ const App: React.FC = () => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const tier = formData.get('tier') as ClientTier;
-    
-    const newClient: Client = {
-      id: `cl_${Math.random().toString(36).substr(2, 6)}`,
-      name: formData.get('name') as string,
-      api_key: `gh_${tier}_${Math.random().toString(36).substr(2, 12)}`,
-      tier: tier,
-      max_daily_tx: Number(formData.get('max_daily_tx')),
-      require_signature: TIER_CONFIG[tier].reqSig,
-      allowed_ips: (formData.get('allowed_ips') as string).split(',').map(i => i.trim()),
-      public_key: formData.get('public_key') as string || undefined,
-      created_at: new Date().toISOString(),
-      status: 'active',
-      current_day_tx: 0,
-      grace_period_hours: tier !== ClientTier.PILOT ? 48 : undefined
-    };
 
-    setClients([...clients, newClient]);
-    setShowAddModal(false);
+    setIsLoading(true);
+    setError(null);
+    clientAPI.register({
+      name: formData.get('name') as string,
+      tier,
+      max_daily_tx: Number(formData.get('max_daily_tx')),
+      public_key: (formData.get('public_key') as string) || undefined,
+      allowed_ips: (formData.get('allowed_ips') as string)
+        .split(',')
+        .map((i) => i.trim())
+        .filter(Boolean),
+    }).then(() => {
+      setShowAddModal(false);
+    }).catch(() => {
+      setError('Failed to register client');
+    }).finally(() => {
+      setIsLoading(false);
+    });
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminPassword) {
-      setIsAuthorized(true);
+    if (!adminPassword) return;
+    setIsLoading(true);
+    setError(null);
+    const verified = await authAPI.verify(adminPassword);
+    setIsAuthorized(verified);
+    if (!verified) {
+      setError('Invalid admin password');
     }
+    setIsLoading(false);
   };
 
   if (!isAuthorized) {
@@ -208,8 +171,11 @@ const App: React.FC = () => {
               />
             </div>
             <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl transition-all">
-              Authenticate Access
+              {isLoading ? 'Authenticating...' : 'Authenticate Access'}
             </button>
+            {error && (
+              <div className="text-xs text-rose-400 text-center">{error}</div>
+            )}
           </form>
           <p className="mt-6 text-[10px] sm:text-xs text-slate-500 text-center leading-relaxed">
             Authorized access only. All actions are logged and subject to government-standard security audits.
@@ -279,7 +245,7 @@ const App: React.FC = () => {
             <p className="text-sm font-semibold text-white">BSV Network Mainnet</p>
             <div className="flex items-center mt-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500 mr-2"></div>
-              <span className="text-xs text-emerald-500 font-medium">Synced: 825,412</span>
+              <span className="text-xs text-emerald-500 font-medium">Queue Depth: {health?.queueDepth ?? 0}</span>
             </div>
           </div>
         </div>
@@ -316,6 +282,20 @@ const App: React.FC = () => {
             </div>
           </div>
         </header>
+        {(error || isLoading) && (
+          <div className="px-4 sm:px-8 pt-4">
+            {error && (
+              <div className="bg-rose-50 text-rose-700 border border-rose-100 rounded-xl px-4 py-3 text-xs sm:text-sm">
+                {error}
+              </div>
+            )}
+            {!error && isLoading && (
+              <div className="bg-slate-50 text-slate-600 border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm">
+                Refreshing live data...
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="p-4 sm:p-8">
           {activeTab === 'dashboard' && (
@@ -323,10 +303,10 @@ const App: React.FC = () => {
               {/* Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 {[
-                  { label: '24h Tx Volume', value: stats.total_tx_24h.toLocaleString(), icon: Icons.Key, trend: '+12.5%' },
-                  { label: 'Active Clients', value: stats.active_clients, icon: Icons.Clients, trend: '+3' },
-                  { label: 'UTXO Pool', value: stats.utxo_count.toLocaleString(), icon: Icons.Settings, trend: 'Optimal' },
-                  { label: 'Avg Latency', value: `${stats.avg_broadcast_latency}ms`, icon: Icons.Health, trend: 'Stable' },
+                  { label: '24h Tx Volume', value: stats.total_tx_24h.toLocaleString(), icon: Icons.Key, trend: 'Last 24h' },
+                  { label: 'Active Clients', value: stats.active_clients, icon: Icons.Clients, trend: 'Live' },
+                  { label: 'UTXO Pool', value: stats.utxo_count.toLocaleString(), icon: Icons.Settings, trend: 'Live' },
+                  { label: 'Avg Latency', value: `${stats.avg_broadcast_latency}ms`, icon: Icons.Health, trend: 'Live' },
                 ].map((s, i) => (
                   <div key={i} className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
                     <div className="flex justify-between items-start mb-4">
@@ -358,7 +338,7 @@ const App: React.FC = () => {
                   </div>
                   <div className="h-60 sm:h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={CHART_DATA}>
+                      <LineChart data={throughputData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
                         <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
@@ -383,7 +363,8 @@ const App: React.FC = () => {
                   <div className="space-y-4 sm:space-y-6">
                     {Object.entries(TIER_CONFIG).map(([key, config]) => {
                       const count = clients.filter(c => c.tier === key).length;
-                      const percentage = (count / clients.length) * 100;
+                      const totalClients = clients.length || 1;
+                      const percentage = (count / totalClients) * 100;
                       return (
                         <div key={key}>
                           <div className="flex justify-between text-xs sm:text-sm mb-2">
@@ -403,10 +384,17 @@ const App: React.FC = () => {
                   <div className="mt-8 pt-6 border-t border-slate-100">
                     <h4 className="text-xs sm:text-sm font-bold text-slate-800 mb-3 uppercase tracking-wider">Security Alerts</h4>
                     <div className="space-y-3">
-                      <div className="flex items-center space-x-3 text-[10px] sm:text-xs bg-amber-50 text-amber-700 p-3 rounded-lg border border-amber-100">
-                        <Icons.Security />
-                        <span className="flex-1">Client cl_23a10b approaching rate limit</span>
-                      </div>
+                      {clients
+                        .filter((c) => c.max_daily_tx > 0 && c.current_day_tx / c.max_daily_tx >= 0.8)
+                        .map((c) => (
+                          <div key={c.id} className="flex items-center space-x-3 text-[10px] sm:text-xs bg-amber-50 text-amber-700 p-3 rounded-lg border border-amber-100">
+                            <Icons.Security />
+                            <span className="flex-1">Client {c.id} approaching rate limit</span>
+                          </div>
+                        ))}
+                      {clients.filter((c) => c.max_daily_tx > 0 && c.current_day_tx / c.max_daily_tx >= 0.8).length === 0 && (
+                        <div className="text-[10px] sm:text-xs text-slate-500">No active alerts</div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -512,16 +500,18 @@ const App: React.FC = () => {
                       <p className="font-bold text-slate-800 text-sm sm:text-base">GovHash Primary API</p>
                       <p className="text-xs sm:text-sm text-slate-500">v1.2.4-stable</p>
                     </div>
-                    <span className="w-fit px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold uppercase tracking-wider">Online</span>
+                    <span className={`w-fit px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${health?.status === 'healthy' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {health?.status === 'healthy' ? 'Online' : 'Degraded'}
+                    </span>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 border border-slate-100 rounded-xl">
                       <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">UTXO Confirmed</p>
-                      <p className="text-lg sm:text-xl font-bold text-slate-900">4,821</p>
+                      <p className="text-lg sm:text-xl font-bold text-slate-900">{health?.utxos?.publishing_available ?? 0}</p>
                     </div>
                     <div className="p-4 border border-slate-100 rounded-xl">
                       <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">UTXO Splitting</p>
-                      <p className="text-lg sm:text-xl font-bold text-indigo-600">379</p>
+                      <p className="text-lg sm:text-xl font-bold text-indigo-600">{health?.utxos?.publishing_locked ?? 0}</p>
                     </div>
                   </div>
                 </div>
@@ -532,21 +522,8 @@ const App: React.FC = () => {
                   <span className="p-2 bg-slate-50 text-slate-600 rounded-lg mr-3"><Icons.Security /></span>
                   Security Audit Trail
                 </h3>
-                <div className="space-y-4">
-                  {[
-                    { event: 'Tier Upgrade', client: 'NotaryHash', time: '12m ago' },
-                    { event: 'New Registration', client: 'AKUA Pilot', time: '4h ago' },
-                    { event: 'Suspicious IP Block', client: 'Global Auth', time: '6h ago' },
-                    { event: 'Admin Login', client: 'SystemRoot', time: '1d ago' },
-                  ].map((log, i) => (
-                    <div key={i} className="flex items-start justify-between py-3 border-b border-slate-50 last:border-0 gap-4">
-                      <div className="flex-1">
-                        <p className="text-xs sm:text-sm font-bold text-slate-800">{log.event}</p>
-                        <p className="text-[10px] sm:text-xs text-slate-500">{log.client}</p>
-                      </div>
-                      <span className="text-[9px] sm:text-[10px] font-medium text-slate-400 uppercase whitespace-nowrap">{log.time}</span>
-                    </div>
-                  ))}
+                <div className="text-xs sm:text-sm text-slate-500">
+                  No audit events available yet.
                 </div>
               </div>
             </div>

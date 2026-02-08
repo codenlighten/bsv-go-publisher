@@ -7,6 +7,7 @@ import (
 
 	"github.com/akua/bsv-broadcaster/internal/models"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -422,6 +423,34 @@ func (d *Database) GetUTXOStats(ctx context.Context) (map[string]int64, error) {
 	return stats, nil
 }
 
+// GetBroadcastRequestsSince returns broadcast requests created after a given time
+func (d *Database) GetBroadcastRequestsSince(ctx context.Context, since time.Time) ([]models.BroadcastRequest, error) {
+	collection := d.db.Collection(CollectionBroadcastRequests)
+
+	filter := bson.M{
+		"created_at": bson.M{"$gte": since},
+	}
+
+	opts := options.Find().SetProjection(bson.M{
+		"created_at": 1,
+		"updated_at": 1,
+		"status":     1,
+	})
+
+	cursor, err := collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var requests []models.BroadcastRequest
+	if err := cursor.All(ctx, &requests); err != nil {
+		return nil, err
+	}
+
+	return requests, nil
+}
+
 // GetAvailableUTXOs fetches up to limit available UTXOs of a specific type
 func (d *Database) GetAvailableUTXOs(ctx context.Context, utxoType models.UTXOType, limit int) ([]*models.UTXO, error) {
 	collection := d.db.Collection(CollectionUTXOs)
@@ -532,6 +561,116 @@ func (d *Database) ListClients(ctx context.Context) ([]*models.Client, error) {
 	}
 
 	return clients, nil
+}
+
+// GetClientByID retrieves a client by their ObjectID
+func (d *Database) GetClientByID(ctx context.Context, clientID primitive.ObjectID) (*models.Client, error) {
+	collection := d.db.Collection(CollectionClients)
+
+	var client models.Client
+	err := collection.FindOne(ctx, bson.M{"_id": clientID}).Decode(&client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &client, nil
+}
+
+// GetClientByAPIKey retrieves a client by their API key hash
+func (d *Database) GetClientByAPIKey(ctx context.Context, apiKeyHash string) (*models.Client, error) {
+	collection := d.db.Collection(CollectionClients)
+
+	var client models.Client
+	err := collection.FindOne(ctx, bson.M{"api_key_hash": apiKeyHash}).Decode(&client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &client, nil
+}
+
+// BindPublicKeyToClient allows a client to self-register their public key
+func (d *Database) BindPublicKeyToClient(ctx context.Context, apiKeyHash, publicKey string) error {
+	collection := d.db.Collection(CollectionClients)
+
+	// Only allow binding if public key is not already set
+	update := bson.M{
+		"$set": bson.M{
+			"public_key":        publicKey,
+			"require_signature": true, // Auto-enable signature requirement
+			"updated_at":        time.Now(),
+		},
+	}
+
+	filter := bson.M{
+		"api_key_hash": apiKeyHash,
+		"public_key":   bson.M{"$in": []interface{}{"", nil}}, // Only if not set
+	}
+
+	result, err := collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("client not found or public key already registered")
+	}
+
+	return nil
+}
+
+// RotateClientPublicKey updates a client's public key with grace period support
+func (d *Database) RotateClientPublicKey(ctx context.Context, apiKeyHash, newPublicKey string) error {
+	collection := d.db.Collection(CollectionClients)
+
+	// Move current key to old_public_key, set new key
+	now := time.Now()
+	update := bson.M{
+		"$set": bson.M{
+			"old_public_key": "$public_key", // This won't work - need to fetch first
+			"public_key":     newPublicKey,
+			"key_rotated_at": &now,
+			"updated_at":     time.Now(),
+		},
+	}
+
+	// First, get the current public key
+	var client models.Client
+	err := collection.FindOne(ctx, bson.M{"api_key_hash": apiKeyHash}).Decode(&client)
+	if err != nil {
+		return fmt.Errorf("client not found: %w", err)
+	}
+
+	// Now update with the old key properly set
+	update = bson.M{
+		"$set": bson.M{
+			"old_public_key": client.PublicKey,
+			"public_key":     newPublicKey,
+			"key_rotated_at": &now,
+			"updated_at":     time.Now(),
+		},
+	}
+
+	_, err = collection.UpdateOne(ctx, bson.M{"api_key_hash": apiKeyHash}, update)
+	return err
+}
+
+// UpdateClientSecurity updates a client's security tier and settings
+func (d *Database) UpdateClientSecurity(ctx context.Context, clientID interface{}, tier string, requireSignature bool, allowedIPs []string, gracePeriodHours int) error {
+	collection := d.db.Collection(CollectionClients)
+
+	update := bson.M{
+		"$set": bson.M{
+			"tier":               tier,
+			"require_signature":  requireSignature,
+			"allowed_ips":        allowedIPs,
+			"grace_period_hours": gracePeriodHours,
+			"updated_at":         time.Now(),
+		},
+	}
+
+	_, err := collection.UpdateOne(ctx, bson.M{"_id": clientID}, update)
+	return err
 }
 
 // Close closes the database connection

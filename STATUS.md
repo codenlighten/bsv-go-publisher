@@ -355,6 +355,12 @@ db.utxos.createIndex({ status: 1, locked_at: 1 })
 - `GET https://api.govhash.org/health` - Health check with UTXO stats
 - `GET https://api.govhash.org/admin/stats` - Detailed statistics
 
+**Admin Portal:**
+- **URL:** https://api.govhash.org/admin
+- **Data Source:** Live API (MongoDB-backed clients + UTXO stats)
+- **Dashboard Metrics:** 24h broadcasts, avg latency, queue depth, throughput series
+- **Security Alerts:** Derived from live client usage (rate limit proximity)
+
 **Current UTXO Pool:**
 - 49,897 publishing UTXOs available
 - 50 funding UTXOs (for future splits)

@@ -60,6 +60,11 @@ func (s *Server) setupRoutes() {
 	s.app.Post("/publish", s.handlePublish)
 	s.app.Get("/status/:uuid", s.handleStatus)
 
+	// Self-service auth endpoints
+	s.app.Post("/auth/register-public-key", s.HandleRegisterPublicKey)
+	s.app.Post("/auth/rotate-public-key", s.HandleRotatePublicKey)
+	s.app.Get("/auth/key-status", s.HandleKeyStatus)
+
 	// Admin endpoints (should be protected in production)
 	s.app.Get("/admin/stats", s.handleStats)
 	s.app.Post("/admin/split", s.handleSplit)
@@ -349,9 +354,58 @@ func (s *Server) handleStats(c *fiber.Ctx) error {
 		})
 	}
 
+	since := time.Now().Add(-24 * time.Hour)
+	requests, err := s.db.GetBroadcastRequestsSince(c.Context(), since)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	bucketLabels := []string{"00:00", "04:00", "08:00", "12:00", "16:00", "20:00"}
+	bucketCounts := make([]int, len(bucketLabels))
+
+	var successCount int
+	var latencyCount int
+	var totalLatency time.Duration
+
+	for _, req := range requests {
+		if !req.CreatedAt.IsZero() {
+			bucket := req.CreatedAt.UTC().Hour() / 4
+			if bucket >= len(bucketCounts) {
+				bucket = len(bucketCounts) - 1
+			}
+			bucketCounts[bucket]++
+		}
+
+		if req.Status == models.RequestStatusSuccess || req.Status == models.RequestStatusMined {
+			successCount++
+			if !req.UpdatedAt.IsZero() {
+				totalLatency += req.UpdatedAt.Sub(req.CreatedAt)
+				latencyCount++
+			}
+		}
+	}
+
+	throughput := make([]fiber.Map, 0, len(bucketLabels))
+	for i, label := range bucketLabels {
+		throughput = append(throughput, fiber.Map{
+			"time": label,
+			"tx":   bucketCounts[i],
+		})
+	}
+
+	avgLatencyMs := int64(0)
+	if latencyCount > 0 {
+		avgLatencyMs = totalLatency.Milliseconds() / int64(latencyCount)
+	}
+
 	return c.JSON(fiber.Map{
-		"utxos":      stats,
-		"queueDepth": s.train.QueueSize(),
+		"utxos":         stats,
+		"queueDepth":    s.train.QueueSize(),
+		"broadcasts24h": successCount,
+		"avgLatencyMs":  avgLatencyMs,
+		"throughput":    throughput,
 	})
 }
 

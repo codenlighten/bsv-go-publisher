@@ -30,14 +30,31 @@ export interface SystemStats {
 
 export interface HealthCheckResponse {
   status: string;
-  utxoStats: {
-    total: number;
-    confirmed: number;
-    unconfirmed: number;
-    splitting: number;
+  queueDepth: number;
+  utxos: {
+    funding_available?: number;
+    publishing_available?: number;
+    publishing_locked?: number;
+    publishing_spent?: number;
+    change_available?: number;
   };
-  nodeInfo: {
-    version: string;
-    protocol: string;
+}
+
+export interface ThroughputPoint {
+  time: string;
+  tx: number;
+}
+
+export interface AdminStatsResponse {
+  utxos: {
+    funding_available?: number;
+    publishing_available?: number;
+    publishing_locked?: number;
+    publishing_spent?: number;
+    change_available?: number;
   };
+  queueDepth: number;
+  broadcasts24h?: number;
+  avgLatencyMs?: number;
+  throughput?: ThroughputPoint[];
 }
