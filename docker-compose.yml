@@ -71,6 +71,20 @@ services:
     profiles:
       - dev
 
+  # Admin Portal Frontend
+  admin-portal:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: bsv_admin_portal
+    restart: always
+    ports:
+      - "3001:80"
+    networks:
+      - bsv-network
+    depends_on:
+      - bsv-publisher
+
 networks:
   bsv-network:
     driver: bridge

@@ -1,0 +1,5 @@
+{
+  "name": "GovHash Admin Portal",
+  "description": "A high-performance administration dashboard for the GovHash (AKUA Broadcaster) ecosystem, allowing management of client tiers, security configurations, and real-time blockchain broadcasting health.",
+  "requestFramePermissions": []
+}
