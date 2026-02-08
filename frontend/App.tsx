@@ -68,14 +68,83 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label:
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'health'>('dashboard');
-  const [clients, setClients] = useState<Client[]>(INITIAL_CLIENTS);
-  const [stats, setStats] = useState<SystemStats>(MOCK_STATS);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [stats, setStats] = useState<SystemStats>({
+    total_tx_24h: 0,
+    active_clients: 0,
+    utxo_count: 0,
+    health_status: 'operational',
+    avg_broadcast_latency: 0
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Fetch real data from API
+  useEffect(() => {
+    if (!isAuthorized) return;
+    
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        // Fetch clients
+        const clientsResponse = await fetch('https://api.govhash.org/admin/clients/list', {
+          headers: { 'X-Admin-Password': adminPassword }
+        });
+        const clientsData = await clientsResponse.json();
+        
+        // Fetch stats
+        const statsResponse = await fetch('https://api.govhash.org/admin/stats');
+        const statsData = await statsResponse.json();
+        
+        // Fetch health
+        const healthResponse = await fetch('https://api.govhash.org/health');
+        const healthData = await healthResponse.json();
+        
+        // Map API clients to UI format
+        const mappedClients = (clientsData.clients || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          api_key: '***hidden***',
+          tier: c.maxDailyTx > 10000 ? ClientTier.ENTERPRISE : ClientTier.PILOT,
+          max_daily_tx: c.maxDailyTx,
+          require_signature: !!c.publicKey,
+          allowed_ips: [],
+          public_key: c.publicKey,
+          created_at: c.createdAt,
+          status: c.isActive ? 'active' : 'suspended',
+          current_day_tx: c.txCount
+        }));
+        
+        setClients(mappedClients);
+        
+        // Update stats with real data
+        setStats({
+          total_tx_24h: 0, // TODO: Add this to API
+          active_clients: clientsData.clients?.filter((c: any) => c.isActive).length || 0,
+          utxo_count: statsData.utxos.publishing_available || 0,
+          health_status: healthData.status === 'healthy' ? 'operational' : 'degraded',
+          avg_broadcast_latency: 0 // TODO: Add this to API
+        });
+        
+      } catch (err) {
+        console.error('Failed to fetch data:', err);
+        setError('Failed to load data from API');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
+    const interval = setInterval(fetchData, 10000); // Refresh every 10s
+    
+    return () => clearInterval(interval);
+  }, [isAuthorized, adminPassword]);
   // Filtered Clients
   const filteredClients = useMemo(() => {
     return clients.filter(c => 
