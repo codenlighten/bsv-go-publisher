@@ -125,9 +125,23 @@ export const authAPI = {
   verify: async (password: string): Promise<boolean> => {
     try {
       setAdminPassword(password);
-      await clientAPI.list();
+      const response = await fetch(`${API_BASE_URL}/admin/clients/list`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Password': password,
+        },
+      });
+      
+      if (!response.ok) {
+        console.error(`Auth failed: HTTP ${response.status}`, await response.json());
+        clearAdminPassword();
+        return false;
+      }
+      
+      console.log('✅ Authentication successful');
       return true;
     } catch (error) {
+      console.error('Auth verification error:', error);
       clearAdminPassword();
       return false;
     }

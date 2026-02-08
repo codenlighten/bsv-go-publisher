@@ -1,0 +1,36 @@
+{
+  "name": "govhash-akua-integration",
+  "version": "1.0.0",
+  "description": "Production-ready Node.js scripts for GovHash transaction publishing API",
+  "main": "basic-publish.js",
+  "scripts": {
+    "publish": "node basic-publish.js",
+    "batch": "node batch-publish.js",
+    "stress": "node stress-test.js",
+    "health": "node health-monitor.js",
+    "track": "node status-tracker.js"
+  },
+  "keywords": [
+    "govhash",
+    "bitcoin",
+    "transaction",
+    "broadcasting",
+    "bsv"
+  ],
+  "author": "GovHash Team",
+  "license": "PROPRIETARY",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/govhash/akua-integration.git"
+  },
+  "bugs": {
+    "url": "https://github.com/govhash/akua-integration/issues"
+  }
+}
