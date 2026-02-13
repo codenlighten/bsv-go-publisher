@@ -1,6 +1,6 @@
 # BSV AKUA Broadcast Server - Status
 
-**Last Updated:** February 8, 2026  
+**Last Updated:** February 13, 2026  
 **Project Status:** 🚀 **PRODUCTION READY WITH ENTERPRISE SECURITY**  
 **Build Status:** ✅ Successfully compiles with official SDK v1.2.16  
 **SDK:** bsv-blockchain/go-sdk v1.2.16 (official, maintained)  
@@ -13,7 +13,8 @@
 
 High-throughput Bitcoin SV OP_RETURN publishing server with atomic UTXO locking and "train" batching model. Designed for 50,000+ concurrent broadcasting operations. **Now production-ready with enterprise-grade security featuring API key authentication, ECDSA signature verification, and cryptographic non-repudiation.**
 
-### Recent Updates (Feb 8, 2026)
+### Recent Updates (Feb 13, 2026)
+- ✅ **MongoDB lockdown** - Bound MongoDB and mongo-express to localhost only (Docker port mapping)
 - ✅ **Created clean AKUA integration repository** - Separate repo with only integration scripts and documentation (github.com:codenlighten/govhash-integration)
 - ✅ **Updated govhash.org landing page** - Added SmartLedger company profile, vendor information (UEI, CAGE, NAICS), and USFCR enrollment badge
 - ✅ **Production deployment verified** - Server running with all latest security features
